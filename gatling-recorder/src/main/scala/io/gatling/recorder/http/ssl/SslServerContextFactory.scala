@@ -16,11 +16,13 @@
 package io.gatling.recorder.http.ssl
 
 import java.io.{ FileInputStream, InputStream, File }
+import java.nio.file.Path
 import java.security.cert.X509Certificate
 import java.security.{ PrivateKey, Security, KeyStore }
 import javax.net.ssl.{ X509KeyManager, KeyManagerFactory, SSLContext }
 
 import io.gatling.core.util.IO._
+import io.gatling.core.util.PathHelper._
 
 import scala.collection.concurrent.TrieMap
 import scala.util.{ Failure, Try }
@@ -115,9 +117,11 @@ object SslServerContextFactory {
     }
   }
 
-  object GatlingCAFactory extends OnTheFlyFactory {
+  class GatlingCAFactory(dir: Path) extends OnTheFlyFactory {
 
-    lazy val caInfo = SslCertUtil.getCAInfo(classpathResourceAsStream(GatlingCAKeyFile), classpathResourceAsStream(GatlingCACrtFile))
+    assert(dir.isDirectory, s"$dir is not a directory")
+
+    lazy val caInfo = SslCertUtil.getCAInfo((dir / GatlingCAKeyFile).inputStream, (dir / GatlingCACrtFile).inputStream)
   }
 
   case class ProvidedCAFactory(pemKeyFile: File, pemCrtFile: File) extends OnTheFlyFactory {

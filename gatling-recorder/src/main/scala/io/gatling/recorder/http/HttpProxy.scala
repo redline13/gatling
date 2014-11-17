@@ -15,12 +15,16 @@
  */
 package io.gatling.recorder.http
 
+import java.io.File
 import java.net.InetSocketAddress
-import org.jboss.netty.channel.group.DefaultChannelGroup
+
+import io.gatling.core.util.PathHelper._
 import io.gatling.recorder.config.RecorderConfiguration
 import io.gatling.recorder.controller.RecorderController
 import io.gatling.recorder.http.channel.BootstrapFactory.{ newRemoteBootstrap, newUserBootstrap }
 import io.gatling.recorder.http.ssl.{ SslServerContextFactory, ServerSslEngineFactory }
+import io.gatling.recorder.http.ssl.HttpsMode._
+import org.jboss.netty.channel.group.DefaultChannelGroup
 
 case class HttpProxy(controller: RecorderController)(implicit config: RecorderConfiguration) {
 
@@ -48,6 +52,29 @@ case class HttpProxy(controller: RecorderController)(implicit config: RecorderCo
     secureRemoteBootstrap.shutdown()
   }
 
-  // FIXME compute from config
-  val serverSslEngineFactory = new ServerSslEngineFactory(SslServerContextFactory.GatlingCAFactory)
+  val serverSslEngineFactory = {
+
+    import config.proxy.https._
+
+    val serverContextFactory = mode match {
+      case SelfSignedCertificate => SslServerContextFactory.SelfSignedFactory
+
+      case ProvidedKeyStore =>
+        val ksFile = new File(keyStore.path)
+        val keyStoreType = keyStore.keyStoreType
+        val password = keyStore.password.toCharArray
+        new SslServerContextFactory.ProvidedKeystoreFactory(ksFile, keyStoreType, password)
+
+      case GatlingCertificateAuthority =>
+        val caFilesDir = "/Users/slandelle"
+        new SslServerContextFactory.GatlingCAFactory(caFilesDir)
+
+      case CustomCertificateAuthority =>
+        val caPrivKey = new File(customCertificate.privateKeyPath)
+        val caCert = new File(customCertificate.certificatePath)
+        new SslServerContextFactory.ProvidedCAFactory(caPrivKey, caCert)
+    }
+
+    new ServerSslEngineFactory(serverContextFactory)
+  }
 }

@@ -17,7 +17,8 @@ package io.gatling.recorder.http.ssl
 
 import java.io._
 import java.math.BigInteger
-import java.security.{ KeyPairGenerator, KeyStore, PrivateKey }
+import java.nio.file.Path
+import java.security.{ KeyPair, KeyPairGenerator, KeyStore, PrivateKey }
 import java.security.cert.X509Certificate
 import java.util.Date
 import java.util.concurrent.TimeUnit
@@ -27,10 +28,12 @@ import scala.util.Try
 
 import com.typesafe.scalalogging.StrictLogging
 import io.gatling.core.util.IO.withCloseable
+import io.gatling.core.util.PathHelper._
+
 import org.bouncycastle.cert.{ X509CertificateHolder, X509v3CertificateBuilder }
-import org.bouncycastle.cert.jcajce.{ JcaX509CertificateConverter, JcaX509CertificateHolder }
+import org.bouncycastle.cert.jcajce.{ JcaX509v1CertificateBuilder, JcaX509CertificateConverter, JcaX509CertificateHolder }
 import org.bouncycastle.openssl.{ PEMKeyPair, PEMParser }
-import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter
+import org.bouncycastle.openssl.jcajce.{ JcaPEMWriter, JcaPEMKeyConverter }
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder
 import org.bouncycastle.pkcs.PKCS10CertificationRequest
 import org.bouncycastle.pkcs.jcajce.JcaPKCS10CertificationRequestBuilder
@@ -42,7 +45,42 @@ object SslCertUtil extends StrictLogging {
 
   def readPEM(file: InputStream): Any = withCloseable(new PEMParser(new InputStreamReader(file))) { _.readObject }
 
+  def writePEM(obj: Any, os: OutputStream): Unit = withCloseable(new JcaPEMWriter(new OutputStreamWriter(os))) { _.writeObject(obj) }
+
   def certificateFromHolder(certHolder: X509CertificateHolder) = new JcaX509CertificateConverter().setProvider("BC").getCertificate(certHolder)
+
+  def newRSAKeyPair: KeyPair = {
+    val kpGen = KeyPairGenerator.getInstance("RSA")
+    kpGen.initialize(1024)
+    kpGen.generateKeyPair
+  }
+
+  def generateGatlingCAPEMFiles(dir: Path, certFileName: String, privKeyFileName: String): Unit = {
+    assert(dir.isDirectory, s"$dir isn't a directory")
+
+      def generateX509V1Certificate(pair: KeyPair): X509CertificateHolder = {
+        val dn = s"C=FR, ST=Val de marne, O=GatlingCA, CN=Gatling"
+        val now = System.currentTimeMillis
+
+        val certGen = new JcaX509v1CertificateBuilder(
+          new X500Principal(dn), // issuer
+          BigInteger.valueOf(now), // serial
+          new Date(now), // notBefore
+          new Date(now + TimeUnit.MILLISECONDS.convert(1, TimeUnit.DAYS)), // notAfter
+          new X500Principal(dn), //subject
+          pair.getPublic // publicKey
+          )
+
+        val signer = new JcaContentSignerBuilder("SHA256withRSA").build(pair.getPrivate)
+        certGen.build(signer)
+      }
+
+    val pair = newRSAKeyPair
+    val crtHolder = generateX509V1Certificate(pair)
+
+    writePEM(crtHolder, (dir / certFileName).outputStream)
+    writePEM(pair, (dir / privKeyFileName).outputStream)
+  }
 
   def getCAInfo(keyFile: InputStream, crtFile: InputStream): Try[(PrivateKey, X509Certificate)] =
     Try {
@@ -64,9 +102,7 @@ object SslCertUtil extends StrictLogging {
 
   private def createCSR(dnHostName: String): Try[(PKCS10CertificationRequest, PrivateKey)] =
     Try {
-      val kpGen = KeyPairGenerator.getInstance("RSA")
-      kpGen.initialize(1024)
-      val pair = kpGen.generateKeyPair
+      val pair = newRSAKeyPair
       val dn = s"C=FR, ST=Val de marne, O=GatlingCA, OU=Gatling, CN=$dnHostName"
       val builder = new JcaPKCS10CertificationRequestBuilder(new X500Principal(dn), pair.getPublic)
       val signer = new JcaContentSignerBuilder("SHA256withRSA").build(pair.getPrivate)
@@ -74,17 +110,17 @@ object SslCertUtil extends StrictLogging {
       (pkcs10CR, pair.getPrivate)
     }
 
-  private def createServerCert(keyCA: PrivateKey, certCA: X509Certificate, csr: PKCS10CertificationRequest): Try[X509Certificate] =
+  private def createServerCert(caKey: PrivateKey, caCert: X509Certificate, csr: PKCS10CertificationRequest): Try[X509Certificate] =
     Try {
       val now = System.currentTimeMillis
       val certBuilder = new X509v3CertificateBuilder(
-        new JcaX509CertificateHolder(certCA).getSubject,
-        BigInteger.valueOf(now),
-        new Date(now),
-        new Date(now + TimeUnit.MILLISECONDS.convert(1, TimeUnit.DAYS)), // cert validity duration
-        csr.getSubject,
-        csr.getSubjectPublicKeyInfo)
-      val signer = new JcaContentSignerBuilder("SHA256withRSA").build(keyCA)
+        new JcaX509CertificateHolder(caCert).getSubject, // issuer
+        BigInteger.valueOf(now), // serial
+        new Date(now), // notBefore
+        new Date(now + TimeUnit.MILLISECONDS.convert(1, TimeUnit.DAYS)), // notAfter
+        csr.getSubject, //subject
+        csr.getSubjectPublicKeyInfo) // publicKey
+      val signer = new JcaContentSignerBuilder("SHA256withRSA").build(caKey)
       certificateFromHolder(certBuilder.build(signer))
     }
 
