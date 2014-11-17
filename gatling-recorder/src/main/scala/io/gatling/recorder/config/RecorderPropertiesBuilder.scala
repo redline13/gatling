@@ -91,6 +91,9 @@ class RecorderPropertiesBuilder {
   def httpsMode(mode: String): Unit =
     props += proxy.https.Mode -> mode
 
+  def savedCertificatesFolder(path: String): Unit =
+    props += proxy.https.generatedCertificates.SavedCertificatesFolder -> path
+
   def keystorePath(path: String): Unit =
     props += proxy.https.keyStore.Path -> path
 

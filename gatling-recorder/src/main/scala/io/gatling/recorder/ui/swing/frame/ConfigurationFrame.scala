@@ -66,8 +66,11 @@ class ConfigurationFrame(frontend: RecorderFrontend)(implicit configuration: Rec
     selection.index = 0
     renderer = Renderer(_.name)
   }
-  private val certificateDownloadPath = new FileChooser { fileSelectionMode = SelectionMode.DirectoriesOnly }
-  private val downloadCertificate = new Button(Action("Download Gatling's CA")(certificateDownloadPath.saveSelection().foreach(downloadGatlingCertificate))) { visible = false }
+
+  private val savedCertificatesPath = new TextField(25)
+  private val certificateSavePathChooser = new FileChooser { fileSelectionMode = SelectionMode.DirectoriesOnly }
+  private val certificateSavePathBrowserButton = Button("Browse")(certificateSavePathChooser.openSelection().foreach(savedCertificatesPath.text = _))
+  private val saveCertificate = new Button(Action("Generate certificates")(saveCertificates()))
   private val keyStorePath = new TextField(25)
   private val keyStoreChooser = new FileChooser { fileSelectionMode = SelectionMode.FilesOnly }
   private val keyStoreBrowserButton = Button("Browse")(keyStoreChooser.openSelection().foreach(keyStorePath.text = _))
@@ -162,6 +165,13 @@ class ConfigurationFrame(frontend: RecorderFrontend)(implicit configuration: Rec
           contents += keyStoreTypes
         }
 
+        val gatlingAuthorityConfig = new LeftAlignedFlowPanel {
+          contents += new Label("Generated certificates folder: ")
+          contents += savedCertificatesPath
+          contents += certificateSavePathBrowserButton
+          contents += saveCertificate
+        }
+
         val customCertificateAuthorityConfig = new LeftAlignedFlowPanel {
           contents += new Label("Certificate file: ")
           contents += certificatePath
@@ -178,7 +188,6 @@ class ConfigurationFrame(frontend: RecorderFrontend)(implicit configuration: Rec
           contents += localProxyHttpPort
           contents += new Label("    HTTPS mode: ")
           contents += httpsModes
-          contents += downloadCertificate
         }
 
         val outgoingProxy = new LeftAlignedFlowPanel {
@@ -196,6 +205,7 @@ class ConfigurationFrame(frontend: RecorderFrontend)(implicit configuration: Rec
         }
 
         val httpsModesConfigs = new BoxPanel(Orientation.Vertical) {
+          contents += gatlingAuthorityConfig
           contents += customKeyStoreConfig
           contents += customCertificateAuthorityConfig
         }
@@ -369,19 +379,19 @@ class ConfigurationFrame(frontend: RecorderFrontend)(implicit configuration: Rec
   private def toggleHttpsModesConfigsVisibility(currentMode: HttpsMode) = currentMode match {
     case SelfSignedCertificate =>
       root.center.network.customKeyStoreConfig.visible = false
-      downloadCertificate.visible = false
+      root.center.network.gatlingAuthorityConfig.visible = false
       root.center.network.customCertificateAuthorityConfig.visible = false
     case ProvidedKeyStore =>
       root.center.network.customKeyStoreConfig.visible = true
-      downloadCertificate.visible = false
+      root.center.network.gatlingAuthorityConfig.visible = false
       root.center.network.customCertificateAuthorityConfig.visible = false
     case GatlingCertificateAuthority =>
       root.center.network.customKeyStoreConfig.visible = false
-      downloadCertificate.visible = true
+      root.center.network.gatlingAuthorityConfig.visible = true
       root.center.network.customCertificateAuthorityConfig.visible = false
     case CustomCertificateAuthority =>
       root.center.network.customKeyStoreConfig.visible = false
-      downloadCertificate.visible = false
+      root.center.network.gatlingAuthorityConfig.visible = false
       root.center.network.customCertificateAuthorityConfig.visible = true
   }
 
@@ -457,14 +467,14 @@ class ConfigurationFrame(frontend: RecorderFrontend)(implicit configuration: Rec
 
   def updateHarFilePath(path: Option[String]): Unit = path.foreach(harPath.text = _)
 
-  def downloadGatlingCertificate(path: String): Unit = {
-    val gatlingCertificate = classpathResourceAsStream(SslServerContextFactory.GatlingCACrtFile)
-    gatlingCertificate.copyTo(string2path(path).outputStream)
+  def saveCertificates(): Unit = {
+    /*val gatlingCertificate = classpathResourceAsStream(SslServerContextFactory.GatlingCACrtFile)
+    gatlingCertificate.copyTo(string2path(savedCertificatesPath.text).outputStream)
     Dialog.showMessage(
       title = "Download successful",
       message =
         s"""|Gatling's CA was successfully saved to
-           |$path .""".stripMargin)
+           |$savedCertificatesPath.text .""".stripMargin)*/
   }
 
   /****************************************/
@@ -480,6 +490,7 @@ class ConfigurationFrame(frontend: RecorderFrontend)(implicit configuration: Rec
     httpsModes.selection.item = configuration.proxy.https.mode
     toggleHttpsModesConfigsVisibility(httpsModes.selection.item)
 
+    savedCertificatesPath.text = configuration.proxy.https.generatedCertificates.savedCertificatedFolder
     keyStorePath.text = configuration.proxy.https.keyStore.path
     keyStorePassword.text = configuration.proxy.https.keyStore.password
     keyStoreTypes.selection.item = configuration.proxy.https.keyStore.keyStoreType
@@ -540,6 +551,8 @@ class ConfigurationFrame(frontend: RecorderFrontend)(implicit configuration: Rec
       props.localPort(Try(localProxyHttpPort.text.toInt).getOrElse(0))
 
       props.httpsMode(httpsModes.selection.item.toString)
+
+      props.savedCertificatesFolder(savedCertificatesPath.text)
 
       props.keystorePath(keyStorePath.text)
       props.keyStorePassword(keyStorePassword.text)
