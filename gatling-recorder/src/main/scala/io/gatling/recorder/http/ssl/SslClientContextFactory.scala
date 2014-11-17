@@ -15,22 +15,13 @@
  */
 package io.gatling.recorder.http.ssl
 
-import javax.net.ssl.SSLEngine
+import javax.net.ssl.SSLContext
 
-object ClientSslEngineFactory {
+object SslClientContextFactory {
 
-  def newClientSslEngine: SSLEngine = {
-    val engine = SslClientContextFactory.newClientContext.createSSLEngine
-    engine.setUseClientMode(true)
-    engine
-  }
-}
-
-class ServerSslEngineFactory(serverContextFactory: SslServerContextFactory) {
-
-  def newServerSslEngine(domainAlias: String): SSLEngine = {
-    val engine = serverContextFactory.newServerContext(domainAlias).createSSLEngine
-    engine.setUseClientMode(false)
-    engine
+  def newClientContext: SSLContext = {
+    val clientContext = SSLContext.getInstance(SslServerContextFactory.Protocol)
+    clientContext.init(null, TrustManagerFactory.LooseTrustManagers, null)
+    clientContext
   }
 }

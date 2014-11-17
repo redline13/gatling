@@ -23,14 +23,18 @@ import io.gatling.recorder.controller.RecorderController
 import io.gatling.recorder.http.channel.BootstrapFactory._
 import io.gatling.recorder.http.handler.ScalaChannelHandler
 import io.gatling.recorder.http.handler.user.SslHandlerSetter
-import io.gatling.recorder.http.ssl.SSLEngineFactory
+import io.gatling.recorder.http.ssl.{ ServerSslEngineFactory, ClientSslEngineFactory }
 import org.jboss.netty.channel._
 import org.jboss.netty.handler.codec.http._
 import org.jboss.netty.handler.ssl.SslHandler
 
 case class TimedHttpRequest(httpRequest: HttpRequest, sendTime: Long = nowMillis)
 
-class RemoteHandler(controller: RecorderController, userChannel: Channel, var performConnect: Boolean, reconnect: Boolean)
+class RemoteHandler(controller: RecorderController,
+                    serverSslEngineFactory: ServerSslEngineFactory,
+                    userChannel: Channel,
+                    var performConnect: Boolean,
+                    reconnect: Boolean)
     extends SimpleChannelHandler with ScalaChannelHandler with StrictLogging {
 
   override def messageReceived(ctx: ChannelHandlerContext, event: MessageEvent): Unit = {
@@ -45,14 +49,14 @@ class RemoteHandler(controller: RecorderController, userChannel: Channel, var pe
 
         if (response.getStatus == HttpResponseStatus.OK) {
           performConnect = false
-          val remoteSslHandler = new SslHandler(SSLEngineFactory.newClientSSLEngine)
+          val remoteSslHandler = new SslHandler(ClientSslEngineFactory.newClientSslEngine)
           upgradeRemotePipeline(ctx.getChannel.getPipeline, remoteSslHandler)
 
           // if we're reconnecting, server channel is already set up
           if (!reconnect)
             remoteSslHandler.handshake.addListener { handshakeFuture: ChannelFuture =>
               val inetSocketAddress = handshakeFuture.getChannel.getRemoteAddress.asInstanceOf[InetSocketAddress]
-              userChannel.getPipeline.addFirst(SslHandlerName, new SslHandlerSetter(inetSocketAddress.getHostString))
+              userChannel.getPipeline.addFirst(SslHandlerName, new SslHandlerSetter(inetSocketAddress.getHostString, serverSslEngineFactory))
               userChannel.write(new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK))
             }
         } else
