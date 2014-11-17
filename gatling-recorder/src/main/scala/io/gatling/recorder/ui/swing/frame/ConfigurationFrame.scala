@@ -26,10 +26,14 @@ import scala.swing.ListView.Renderer
 import scala.swing.event.{ ButtonClicked, KeyReleased, SelectionChanged }
 import scala.util.Try
 
+import io.gatling.core.util.PathHelper._
 import io.gatling.core.util.StringHelper.RichString
-import io.gatling.recorder.{ Har, Proxy, RecorderMode }
-import io.gatling.recorder.config.{ FilterStrategy, RecorderConfiguration, RecorderPropertiesBuilder }
+import io.gatling.core.util.IO._
+import io.gatling.recorder._
+import io.gatling.recorder.config._
 import io.gatling.recorder.config.FilterStrategy.BlacklistFirst
+import io.gatling.recorder.http._
+import io.gatling.recorder.http.ssl.SslServerContextFactory.GatlingCAFactory
 import io.gatling.recorder.ui.RecorderFrontend
 import io.gatling.recorder.ui.swing.Commons._
 import io.gatling.recorder.ui.swing.component.FilterTable
@@ -51,6 +55,12 @@ class ConfigurationFrame(frontend: RecorderFrontend)(implicit configuration: Rec
 
   /* Network panel components */
   private val localProxyHttpPort = new TextField(4)
+  private val httpsModes = new ComboBox[HttpsMode](HttpsMode.AllHttpsModes) {
+    selection.index = 0
+    renderer = Renderer(_.name)
+  }
+  private val certificateDownloadPath = new FileChooser { fileSelectionMode = SelectionMode.FilesOnly }
+  private val downloadCertificate = new Button(Action("Download Gatling's CA")(certificateDownloadPath.saveSelection().foreach(downloadGatlingCertificate))) { visible = false }
   private val outgoingProxyHost = new TextField(12)
   private val outgoingProxyHttpPort = new TextField(4) { enabled = false }
   private val outgoingProxyHttpsPort = new TextField(4) { enabled = false }
@@ -129,13 +139,16 @@ class ConfigurationFrame(frontend: RecorderFrontend)(implicit configuration: Rec
       val network = new BorderPanel {
         border = titledBorder("Network")
 
-        val localProxy = new LeftAlignedFlowPanel {
+        val localProxyAndHttpsMode = new LeftAlignedFlowPanel {
           contents += new Label("Listening port*: ")
           contents += new Label("    localhost")
           contents += new Label("HTTP/HTTPS")
           contents += localProxyHttpPort
-
+          contents += new Label("    HTTPS mode: ")
+          contents += httpsModes
+          contents += downloadCertificate
         }
+
         val outgoingProxy = new LeftAlignedFlowPanel {
           contents += new Label("Outgoing proxy: ")
           contents += new Label("host:")
@@ -150,7 +163,7 @@ class ConfigurationFrame(frontend: RecorderFrontend)(implicit configuration: Rec
           contents += outgoingProxyPassword
         }
 
-        layout(localProxy) = North
+        layout(localProxyAndHttpsMode) = North
         layout(outgoingProxy) = South
       }
       val har = new BorderPanel {
@@ -182,16 +195,21 @@ class ConfigurationFrame(frontend: RecorderFrontend)(implicit configuration: Rec
           layout(className) = East
         }
 
-        layout(config) = North
-        layout(new BorderPanel {
+        val redirectAndInferOptions = new BorderPanel {
           layout(followRedirects) = West
           layout(inferHtmlResources) = East
-        }) = West
-        layout(automaticReferers) = East
-        layout(new BorderPanel {
+        }
+
+        val cacheAndResponseBodiesCheck = new BorderPanel {
           layout(removeConditionalCache) = West
           layout(checkResponseBodies) = East
-        }) = South
+        }
+
+        layout(config) = North
+
+        layout(redirectAndInferOptions) = West
+        layout(automaticReferers) = East
+        layout(cacheAndResponseBodiesCheck) = South
       }
       val outputConfig = new BorderPanel {
         border = titledBorder("Output")
@@ -277,7 +295,7 @@ class ConfigurationFrame(frontend: RecorderFrontend)(implicit configuration: Rec
   /*****************************************/
 
   /* Reactions I: handling filters, save checkbox, table edition and switching between Proxy and HAR mode */
-  listenTo(filterStrategies.selection, modeSelector.selection, savePreferences)
+  listenTo(filterStrategies.selection, modeSelector.selection, httpsModes.selection, savePreferences)
   // Backticks are needed to match the components, see section 8.1.5 of Scala spec.
   reactions += {
     case SelectionChanged(`modeSelector`) =>
@@ -292,6 +310,17 @@ class ConfigurationFrame(frontend: RecorderFrontend)(implicit configuration: Rec
     case SelectionChanged(`filterStrategies`) =>
       val isNotDisabledStrategy = filterStrategies.selection.item != FilterStrategy.Disabled
       toggleFiltersEdition(isNotDisabledStrategy)
+    case SelectionChanged(`httpsModes`) =>
+      httpsModes.selection.item match {
+        case SelfSignedCertificate =>
+          downloadCertificate.visible = false
+        case ProvidedKeyStore =>
+          downloadCertificate.visible = false
+        case GatlingCertificateAuthority =>
+          downloadCertificate.visible = true
+        case CustomCertificateAuthority =>
+          downloadCertificate.visible = false
+      }
     case ButtonClicked(`savePreferences`) if !savePreferences.selected =>
       val props = new RecorderPropertiesBuilder
       props.saveConfig(savePreferences.selected)
@@ -377,6 +406,16 @@ class ConfigurationFrame(frontend: RecorderFrontend)(implicit configuration: Rec
   def harFilePath = harPath.text
 
   def updateHarFilePath(path: Option[String]): Unit = path.foreach(harPath.text = _)
+
+  def downloadGatlingCertificate(path: String): Unit = {
+    val gatlingCertificate = classpathResourceAsStream(GatlingCAFactory.DefaultCACrtFile)
+    gatlingCertificate.copyTo(string2path(path).outputStream)
+    Dialog.showMessage(
+      title = "Download successful",
+      message =
+        s"""|Gatling's CA was successfully saved to
+           |$path .""".stripMargin)
+  }
 
   /****************************************/
   /**           CONFIGURATION            **/

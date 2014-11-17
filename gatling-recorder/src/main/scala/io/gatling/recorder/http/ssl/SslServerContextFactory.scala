@@ -114,8 +114,8 @@ object SslServerContextFactory {
 
   object GatlingCAFactory extends OnTheFlyFactory {
 
-    private val DefaultCAKeyFile = "gatlingCA.key.pem"
-    private val DefaultCACrtFile = "gatlingCA.cert.pem"
+    val DefaultCAKeyFile = "gatlingCA.key.pem"
+    val DefaultCACrtFile = "gatlingCA.cert.pem"
 
     lazy val caInfo = SslCertUtil.getCAInfo(classpathResourceAsStream(DefaultCAKeyFile), classpathResourceAsStream(DefaultCACrtFile))
   }
