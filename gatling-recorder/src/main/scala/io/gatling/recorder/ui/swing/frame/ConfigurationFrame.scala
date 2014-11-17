@@ -66,7 +66,7 @@ class ConfigurationFrame(frontend: RecorderFrontend)(implicit configuration: Rec
     selection.index = 0
     renderer = Renderer(_.name)
   }
-  private val certificateDownloadPath = new FileChooser { fileSelectionMode = SelectionMode.FilesOnly }
+  private val certificateDownloadPath = new FileChooser { fileSelectionMode = SelectionMode.DirectoriesOnly }
   private val downloadCertificate = new Button(Action("Download Gatling's CA")(certificateDownloadPath.saveSelection().foreach(downloadGatlingCertificate))) { visible = false }
   private val keyStorePath = new TextField(25)
   private val keyStoreChooser = new FileChooser { fileSelectionMode = SelectionMode.FilesOnly }
@@ -153,8 +153,6 @@ class ConfigurationFrame(frontend: RecorderFrontend)(implicit configuration: Rec
         border = titledBorder("Network")
 
         val customKeyStoreConfig = new LeftAlignedFlowPanel {
-          visible = false
-
           contents += new Label("Keystore file: ")
           contents += keyStorePath
           contents += keyStoreBrowserButton
@@ -165,8 +163,6 @@ class ConfigurationFrame(frontend: RecorderFrontend)(implicit configuration: Rec
         }
 
         val customCertificateAuthorityConfig = new LeftAlignedFlowPanel {
-          visible = false
-
           contents += new Label("Certificate file: ")
           contents += certificatePath
           contents += certificatePathBrowserButton
