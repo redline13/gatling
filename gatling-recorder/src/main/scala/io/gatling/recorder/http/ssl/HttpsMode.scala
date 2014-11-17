@@ -1,4 +1,4 @@
-package io.gatling.recorder.http
+package io.gatling.recorder.http.ssl
 
 import io.gatling.core.util.ClassSimpleNameToString
 
