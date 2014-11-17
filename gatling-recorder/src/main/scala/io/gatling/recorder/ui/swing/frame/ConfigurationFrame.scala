@@ -32,7 +32,8 @@ import io.gatling.core.util.IO._
 import io.gatling.recorder._
 import io.gatling.recorder.config._
 import io.gatling.recorder.config.FilterStrategy.BlacklistFirst
-import io.gatling.recorder.http.ssl._
+import io.gatling.recorder.http.ssl.{ HttpsMode, KeyStoreType, SslServerContextFactory }
+import io.gatling.recorder.http.ssl.HttpsMode._
 import io.gatling.recorder.ui.RecorderFrontend
 import io.gatling.recorder.ui.swing.Commons._
 import io.gatling.recorder.ui.swing.component.FilterTable
@@ -479,6 +480,15 @@ class ConfigurationFrame(frontend: RecorderFrontend)(implicit configuration: Rec
   private def populateItemsFromConfiguration(): Unit = {
     localProxyHttpPort.text = configuration.proxy.port.toString
 
+    httpsModes.selection.item = configuration.proxy.https.mode
+
+    keyStorePath.text = configuration.proxy.https.keyStore.path
+    keyStorePassword.text = configuration.proxy.https.keyStore.password
+    keyStoreTypes.selection.item = configuration.proxy.https.keyStore.keyStoreType
+
+    certificatePath.text = configuration.proxy.https.customCertificate.certificatePath
+    privateKeyPath.text = configuration.proxy.https.customCertificate.privateKeyPath
+
     configuration.proxy.outgoing.host.map { proxyHost =>
       outgoingProxyHost.text = proxyHost
       outgoingProxyHttpPort.text = configuration.proxy.outgoing.port.map(_.toString).orNull
@@ -530,6 +540,15 @@ class ConfigurationFrame(frontend: RecorderFrontend)(implicit configuration: Rec
 
       // Local proxy
       props.localPort(Try(localProxyHttpPort.text.toInt).getOrElse(0))
+
+      props.httpsMode(httpsModes.selection.item.toString)
+
+      props.keystorePath(keyStorePath.text)
+      props.keyStorePassword(keyStorePassword.text)
+      props.keyStoreType(keyStoreTypes.selection.item.toString)
+
+      props.certificatePath(certificatePath.text)
+      props.privateKeyPath(privateKeyPath.text)
 
       // Outgoing proxy
       outgoingProxyHost.text.trimToOption match {
