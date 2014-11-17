@@ -66,8 +66,7 @@ case class HttpProxy(controller: RecorderController)(implicit config: RecorderCo
         new SslServerContextFactory.ProvidedKeystoreFactory(ksFile, keyStoreType, password)
 
       case GatlingCertificateAuthority =>
-        val caFilesDir = "/Users/slandelle"
-        new SslServerContextFactory.GatlingCAFactory(caFilesDir)
+        new SslServerContextFactory.GatlingCAFactory(generatedCertificates.savedCertificatedFolder)
 
       case CustomCertificateAuthority =>
         val caPrivKey = new File(customCertificate.privateKeyPath)
