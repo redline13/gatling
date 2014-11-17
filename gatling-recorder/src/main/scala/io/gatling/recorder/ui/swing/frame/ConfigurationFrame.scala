@@ -125,9 +125,6 @@ class ConfigurationFrame(frontend: RecorderFrontend)(implicit configuration: Rec
   private val savePreferences = new CheckBox("Save preferences") { horizontalTextPosition = Alignment.Left }
   private val start = Button("Start !")(reloadConfigurationAndStart())
 
-  registerValidators()
-  populateItemsFromConfiguration()
-
   /**********************************/
   /**           UI SETUP           **/
   /**********************************/
@@ -335,6 +332,9 @@ class ConfigurationFrame(frontend: RecorderFrontend)(implicit configuration: Rec
 
   centerOnScreen()
 
+  registerValidators()
+  populateItemsFromConfiguration()
+
   /*****************************************/
   /**           EVENTS HANDLING           **/
   /*****************************************/
@@ -355,25 +355,7 @@ class ConfigurationFrame(frontend: RecorderFrontend)(implicit configuration: Rec
     case SelectionChanged(`filterStrategies`) =>
       val isNotDisabledStrategy = filterStrategies.selection.item != FilterStrategy.Disabled
       toggleFiltersEdition(isNotDisabledStrategy)
-    case SelectionChanged(`httpsModes`) =>
-      httpsModes.selection.item match {
-        case SelfSignedCertificate =>
-          root.center.network.customKeyStoreConfig.visible = false
-          downloadCertificate.visible = false
-          root.center.network.customCertificateAuthorityConfig.visible = false
-        case ProvidedKeyStore =>
-          root.center.network.customKeyStoreConfig.visible = true
-          downloadCertificate.visible = false
-          root.center.network.customCertificateAuthorityConfig.visible = false
-        case GatlingCertificateAuthority =>
-          root.center.network.customKeyStoreConfig.visible = false
-          downloadCertificate.visible = true
-          root.center.network.customCertificateAuthorityConfig.visible = false
-        case CustomCertificateAuthority =>
-          root.center.network.customKeyStoreConfig.visible = false
-          downloadCertificate.visible = false
-          root.center.network.customCertificateAuthorityConfig.visible = true
-      }
+    case SelectionChanged(`httpsModes`) => toggleHttpsModesConfigsVisibility(httpsModes.selection.item)
     case ButtonClicked(`savePreferences`) if !savePreferences.selected =>
       val props = new RecorderPropertiesBuilder
       props.saveConfig(savePreferences.selected)
@@ -386,6 +368,25 @@ class ConfigurationFrame(frontend: RecorderFrontend)(implicit configuration: Rec
     whiteListTable.setFocusable(enabled)
     blackListTable.setEnabled(enabled)
     blackListTable.setFocusable(enabled)
+  }
+
+  private def toggleHttpsModesConfigsVisibility(currentMode: HttpsMode) = currentMode match {
+    case SelfSignedCertificate =>
+      root.center.network.customKeyStoreConfig.visible = false
+      downloadCertificate.visible = false
+      root.center.network.customCertificateAuthorityConfig.visible = false
+    case ProvidedKeyStore =>
+      root.center.network.customKeyStoreConfig.visible = true
+      downloadCertificate.visible = false
+      root.center.network.customCertificateAuthorityConfig.visible = false
+    case GatlingCertificateAuthority =>
+      root.center.network.customKeyStoreConfig.visible = false
+      downloadCertificate.visible = true
+      root.center.network.customCertificateAuthorityConfig.visible = false
+    case CustomCertificateAuthority =>
+      root.center.network.customKeyStoreConfig.visible = false
+      downloadCertificate.visible = false
+      root.center.network.customCertificateAuthorityConfig.visible = true
   }
 
   /* Reactions II: fields validation */
@@ -481,6 +482,7 @@ class ConfigurationFrame(frontend: RecorderFrontend)(implicit configuration: Rec
     localProxyHttpPort.text = configuration.proxy.port.toString
 
     httpsModes.selection.item = configuration.proxy.https.mode
+    toggleHttpsModesConfigsVisibility(httpsModes.selection.item)
 
     keyStorePath.text = configuration.proxy.https.keyStore.path
     keyStorePassword.text = configuration.proxy.https.keyStore.password
