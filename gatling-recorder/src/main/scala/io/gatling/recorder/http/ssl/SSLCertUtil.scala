@@ -55,7 +55,7 @@ object SslCertUtil extends StrictLogging {
     kpGen.generateKeyPair
   }
 
-  def generateGatlingCAPEMFiles(dir: Path, certFileName: String, privKeyFileName: String): Unit = {
+  def generateGatlingCAPEMFiles(dir: Path, privKeyFileName: String, certFileName: String): Unit = {
     assert(dir.isDirectory, s"$dir isn't a directory")
 
       def generateX509V1Certificate(pair: KeyPair): X509CertificateHolder = {

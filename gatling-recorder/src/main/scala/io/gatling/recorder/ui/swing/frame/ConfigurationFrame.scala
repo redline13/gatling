@@ -28,11 +28,10 @@ import scala.util.Try
 
 import io.gatling.core.util.PathHelper._
 import io.gatling.core.util.StringHelper.RichString
-import io.gatling.core.util.IO._
 import io.gatling.recorder._
 import io.gatling.recorder.config._
 import io.gatling.recorder.config.FilterStrategy.BlacklistFirst
-import io.gatling.recorder.http.ssl.{ HttpsMode, KeyStoreType, SslServerContextFactory }
+import io.gatling.recorder.http.ssl.{ SslCertUtil, HttpsMode, KeyStoreType, SslServerContextFactory }
 import io.gatling.recorder.http.ssl.HttpsMode._
 import io.gatling.recorder.ui.RecorderFrontend
 import io.gatling.recorder.ui.swing.Commons._
@@ -70,7 +69,7 @@ class ConfigurationFrame(frontend: RecorderFrontend)(implicit configuration: Rec
   private val savedCertificatesPath = new TextField(25)
   private val certificateSavePathChooser = new FileChooser { fileSelectionMode = SelectionMode.DirectoriesOnly }
   private val certificateSavePathBrowserButton = Button("Browse")(certificateSavePathChooser.openSelection().foreach(savedCertificatesPath.text = _))
-  private val saveCertificate = new Button(Action("Generate certificates")(saveCertificates()))
+  private val saveCertificate = new Button(Action("Generate certificates")(generateCAFiles()))
   private val keyStorePath = new TextField(25)
   private val keyStoreChooser = new FileChooser { fileSelectionMode = SelectionMode.FilesOnly }
   private val keyStoreBrowserButton = Button("Browse")(keyStoreChooser.openSelection().foreach(keyStorePath.text = _))
@@ -467,14 +466,17 @@ class ConfigurationFrame(frontend: RecorderFrontend)(implicit configuration: Rec
 
   def updateHarFilePath(path: Option[String]): Unit = path.foreach(harPath.text = _)
 
-  def saveCertificates(): Unit = {
-    /*val gatlingCertificate = classpathResourceAsStream(SslServerContextFactory.GatlingCACrtFile)
-    gatlingCertificate.copyTo(string2path(savedCertificatesPath.text).outputStream)
+  def generateCAFiles(): Unit = {
+    SslCertUtil.generateGatlingCAPEMFiles(
+      savedCertificatesPath.text,
+      SslServerContextFactory.GatlingCAKeyFile,
+      SslServerContextFactory.GatlingCACrtFile)
+
     Dialog.showMessage(
       title = "Download successful",
       message =
-        s"""|Gatling's CA was successfully saved to
-           |$savedCertificatesPath.text .""".stripMargin)*/
+        s"""|Gatling's CA certificate and key were successfully saved to
+           |${savedCertificatesPath.text} .""".stripMargin)
   }
 
   /****************************************/
