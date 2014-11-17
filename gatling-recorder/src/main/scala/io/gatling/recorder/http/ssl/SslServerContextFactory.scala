@@ -35,17 +35,21 @@ sealed trait SslServerContextFactory {
 }
 
 object SslServerContextFactory {
+  val GatlingSelfSignedKeyStore = "gatling.jks"
+  val GatlingKeyStoreType = "JKS"
   val GatlingPassword = "gatling"
+  val GatlingCAKeyFile = "gatlingCA.key.pem"
+  val GatlingCACrtFile = "gatlingCA.cert.pem"
   val Algorithm = Option(Security.getProperty("ssl.KeyManagerFactory.algorithm")).getOrElse("SunX509")
   val Protocol = "TLS"
-  val KeyStoreType = "JKS"
 
   abstract class ImmutableFactory extends SslServerContextFactory {
 
     def keyStoreInitStream: InputStream
+    def keyStoreType: String
 
     lazy val keyStore = {
-      val ks = KeyStore.getInstance(KeyStoreType)
+      val ks = KeyStore.getInstance(keyStoreType)
       withCloseable(keyStoreInitStream) { ks.load(_, password) }
       ks
     }
@@ -67,14 +71,13 @@ object SslServerContextFactory {
 
   object SelfSignedFactory extends ImmutableFactory {
 
-    val GatlingSelfSignedKeyStore = "gatling.jks"
-
     def keyStoreInitStream: InputStream = classpathResourceAsStream(GatlingSelfSignedKeyStore)
+    val keyStoreType = GatlingKeyStoreType
 
     val password: Array[Char] = GatlingPassword.toCharArray
   }
 
-  class ProvidedKeystoreFactory(ksFile: File, val password: Array[Char]) extends ImmutableFactory {
+  class ProvidedKeystoreFactory(ksFile: File, val keyStoreType: String, val password: Array[Char]) extends ImmutableFactory {
 
     def keyStoreInitStream: InputStream = new FileInputStream(ksFile)
   }
@@ -106,7 +109,7 @@ object SslServerContextFactory {
     val password: Array[Char] = GatlingPassword.toCharArray
 
     lazy val keyStore = {
-      val ks = KeyStore.getInstance(KeyStoreType)
+      val ks = KeyStore.getInstance(GatlingKeyStoreType)
       ks.load(null, null)
       ks
     }
@@ -114,10 +117,7 @@ object SslServerContextFactory {
 
   object GatlingCAFactory extends OnTheFlyFactory {
 
-    val DefaultCAKeyFile = "gatlingCA.key.pem"
-    val DefaultCACrtFile = "gatlingCA.cert.pem"
-
-    lazy val caInfo = SslCertUtil.getCAInfo(classpathResourceAsStream(DefaultCAKeyFile), classpathResourceAsStream(DefaultCACrtFile))
+    lazy val caInfo = SslCertUtil.getCAInfo(classpathResourceAsStream(GatlingCAKeyFile), classpathResourceAsStream(GatlingCACrtFile))
   }
 
   case class ProvidedCAFactory(pemKeyFile: File, pemCrtFile: File) extends OnTheFlyFactory {

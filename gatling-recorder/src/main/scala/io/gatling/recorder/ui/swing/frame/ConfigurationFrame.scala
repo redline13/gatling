@@ -460,7 +460,7 @@ class ConfigurationFrame(frontend: RecorderFrontend)(implicit configuration: Rec
   def updateHarFilePath(path: Option[String]): Unit = path.foreach(harPath.text = _)
 
   def downloadGatlingCertificate(path: String): Unit = {
-    val gatlingCertificate = classpathResourceAsStream(SslServerContextFactory.GatlingCAFactory.DefaultCACrtFile)
+    val gatlingCertificate = classpathResourceAsStream(SslServerContextFactory.GatlingCACrtFile)
     gatlingCertificate.copyTo(string2path(path).outputStream)
     Dialog.showMessage(
       title = "Download successful",

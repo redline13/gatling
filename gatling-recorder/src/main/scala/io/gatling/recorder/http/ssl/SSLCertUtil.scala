@@ -42,12 +42,14 @@ object SslCertUtil extends StrictLogging {
 
   def readPEM(file: InputStream): Any = withCloseable(new PEMParser(new InputStreamReader(file))) { _.readObject }
 
+  def certificateFromHolder(certHolder: X509CertificateHolder) = new JcaX509CertificateConverter().setProvider("BC").getCertificate(certHolder)
+
   def getCAInfo(keyFile: InputStream, crtFile: InputStream): Try[(PrivateKey, X509Certificate)] =
     Try {
       val keyInfo = readPEM(keyFile).asInstanceOf[PEMKeyPair].getPrivateKeyInfo
       val certHolder = readPEM(crtFile).asInstanceOf[X509CertificateHolder]
       val privateKey = new JcaPEMKeyConverter().getPrivateKey(keyInfo)
-      val certificate = new JcaX509CertificateConverter().setProvider("BC").getCertificate(certHolder)
+      val certificate = certificateFromHolder(certHolder)
 
       (privateKey, certificate)
     }
@@ -83,7 +85,7 @@ object SslCertUtil extends StrictLogging {
         csr.getSubject,
         csr.getSubjectPublicKeyInfo)
       val signer = new JcaContentSignerBuilder("SHA256withRSA").build(keyCA)
-      new JcaX509CertificateConverter().setProvider("BC").getCertificate(certBuilder.build(signer))
+      certificateFromHolder(certBuilder.build(signer))
     }
 
   private def addNewKeystoreEntry(keyStore: KeyStore, password: Array[Char], servCert: X509Certificate, privKey: PrivateKey, certCA: X509Certificate, alias: String): Try[KeyStore] =
