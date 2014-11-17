@@ -36,7 +36,7 @@ sealed trait SslServerContextFactory {
 
 object SslServerContextFactory {
   val GatlingSelfSignedKeyStore = "gatling.jks"
-  val GatlingKeyStoreType = "JKS"
+  val GatlingKeyStoreType = KeyStoreType.JKS
   val GatlingPassword = "gatling"
   val GatlingCAKeyFile = "gatlingCA.key.pem"
   val GatlingCACrtFile = "gatlingCA.cert.pem"
@@ -46,10 +46,10 @@ object SslServerContextFactory {
   abstract class ImmutableFactory extends SslServerContextFactory {
 
     def keyStoreInitStream: InputStream
-    def keyStoreType: String
+    def keyStoreType: KeyStoreType
 
     lazy val keyStore = {
-      val ks = KeyStore.getInstance(keyStoreType)
+      val ks = KeyStore.getInstance(keyStoreType.name)
       withCloseable(keyStoreInitStream) { ks.load(_, password) }
       ks
     }
@@ -77,7 +77,7 @@ object SslServerContextFactory {
     val password: Array[Char] = GatlingPassword.toCharArray
   }
 
-  class ProvidedKeystoreFactory(ksFile: File, val keyStoreType: String, val password: Array[Char]) extends ImmutableFactory {
+  class ProvidedKeystoreFactory(ksFile: File, val keyStoreType: KeyStoreType, val password: Array[Char]) extends ImmutableFactory {
 
     def keyStoreInitStream: InputStream = new FileInputStream(ksFile)
   }
@@ -109,7 +109,7 @@ object SslServerContextFactory {
     val password: Array[Char] = GatlingPassword.toCharArray
 
     lazy val keyStore = {
-      val ks = KeyStore.getInstance(GatlingKeyStoreType)
+      val ks = KeyStore.getInstance(GatlingKeyStoreType.name)
       ks.load(null, null)
       ks
     }
