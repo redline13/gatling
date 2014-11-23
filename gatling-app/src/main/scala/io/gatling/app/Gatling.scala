@@ -65,6 +65,7 @@ object Gatling {
       help(Help).text("Show help (this message) and exit")
       opt[Unit](NoReports).foreach(_ => props.noReports()).text("Runs simulation but does not generate reports")
       opt[Unit](Mute).foreach(_ => props.mute()).text("Runs in mute mode: don't asks for run description nor simulation ID, use defaults").hidden()
+      opt[Unit](Singular).foreach(_ => props.singular()).text("The report directory will be singular, Results Folder without subdirectories.")
       opt[String](ReportsOnly).foreach(props.reportsOnly).valueName("<directoryName>").text("Generates the reports for the simulation in <directoryName>")
       opt[String](DataFolder).foreach(props.dataDirectory).valueName("<directoryPath>").text("Uses <directoryPath> as the absolute path of the directory where feeders are stored")
       opt[String](ResultsFolder).foreach(props.resultsDirectory).valueName("<directoryPath>").text("Uses <directoryPath> as the absolute path of the directory where results are stored")
