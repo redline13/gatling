@@ -29,6 +29,9 @@ class GatlingPropertiesBuilder {
   def noReports(): Unit =
     props += charting.NoReports -> true
 
+  def singular(): Unit =
+    props += core.directory.Singular -> true
+
   def reportsOnly(v: String): Unit =
     props += core.directory.ReportsOnly -> v
 
