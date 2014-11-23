@@ -49,6 +49,7 @@ object ConfigKeys {
       val Binaries = "gatling.core.directory.binaries"
       val ReportsOnly = "gatling.core.directory.reportsOnly"
       val Results = "gatling.core.directory.results"
+      val Singular = "gatling.core.directory.singular"
     }
   }
 

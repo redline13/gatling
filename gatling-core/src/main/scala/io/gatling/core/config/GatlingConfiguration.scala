@@ -131,7 +131,8 @@ object GatlingConfiguration extends StrictLogging {
           sources = config.getString(core.directory.Simulations),
           binaries = config.getString(core.directory.Binaries).trimToOption,
           reportsOnly = config.getString(core.directory.ReportsOnly).trimToOption,
-          results = config.getString(core.directory.Results)
+          results = config.getString(core.directory.Results),
+          singular = config.getBoolean(core.directory.Singular)
         )
       ),
       charting = ChartingConfiguration(
@@ -297,7 +298,8 @@ case class DirectoryConfiguration(
   sources:     String,
   binaries:    Option[String],
   reportsOnly: Option[String],
-  results:     String
+  results:     String,
+  singular: Boolean
 )
 
 case class ChartingConfiguration(

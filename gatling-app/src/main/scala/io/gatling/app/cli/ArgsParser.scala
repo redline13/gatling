@@ -36,6 +36,10 @@ private[app] class ArgsParser(args: Array[String]) {
       .foreach(_ => props.mute())
       .text("Runs in mute mode: don't asks for run description nor simulation ID, use defaults")
 
+    opt[Unit](Singular)
+      .foreach(_ => props.singular())
+      .text("The report directory will be singular, Results Folder without subdirectories.")
+
     opt[String](ReportsOnly)
       .foreach(props.reportsOnly)
       .valueName("<directoryName>")
